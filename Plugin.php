@@ -249,22 +249,22 @@ class Plugin extends Base
         ];
     }
 
-    public function getName(): string
+    public function getPluginName(): string
     {
         return 'TeamWork';
     }
 
-    public function getDescription(): string
+    public function getPluginDescription(): string
     {
         return 'Multi-person task assignment for Kanboard';
     }
 
-    public function getAuthor(): string
+    public function getPluginAuthor(): string
     {
-        return 'TeamWork Contributors';
+        return 'k1bot2026';
     }
 
-    public function getVersion(): string
+    public function getPluginVersion(): string
     {
         return '1.0.0';
     }
@@ -274,7 +274,7 @@ class Plugin extends Base
         return '>=1.2.46';
     }
 
-    public function getHomepageUrl(): string
+    public function getPluginHomepage(): string
     {
         return 'https://github.com/k1bot2026/kanboard-plugin-teamwork';
     }
