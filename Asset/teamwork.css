@@ -1,0 +1,353 @@
+/* ===================================================================
+   TeamWork Plugin — Multi-Assignee Extension Styles
+   =================================================================== */
+
+/* Extension container — flows below the native owner field in the detail column */
+.teamwork-extension {
+    margin-top: 4px;
+    position: relative;
+}
+
+/* + button — small, unobtrusive, adjacent to native owner row */
+.teamwork-add-btn {
+    background: none;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    color: #666;
+    cursor: pointer;
+    font-size: 11px;
+    line-height: 1;
+    padding: 2px 5px;
+}
+.teamwork-add-btn:hover {
+    background: #f0f0f0;
+    color: #333;
+}
+
+/* Assignee list */
+.teamwork-assignee-list {
+    list-style: none;
+    margin: 4px 0 0;
+    padding: 0;
+}
+.teamwork-assignee-item {
+    display: flex;
+    align-items: center;
+    padding: 2px 0;
+    gap: 4px;
+}
+.teamwork-type-icon {
+    color: #999;
+    font-size: 11px;
+    width: 12px;
+    text-align: center;
+}
+.teamwork-assignee-name {
+    flex: 1;
+    font-size: 13px;
+}
+.teamwork-role-label {
+    font-size: 0.8em;
+    color: #666;
+    margin-left: 4px;
+}
+.teamwork-role-clickable {
+    cursor: pointer;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+    background: #e8e8e8;
+    color: #555;
+    margin-left: 4px;
+}
+.teamwork-role-clickable:hover {
+    background: #ddd;
+}
+.teamwork-set-role {
+    font-size: 11px;
+    color: #aaa;
+    margin-left: 4px;
+    text-decoration: none;
+}
+.teamwork-set-role:hover {
+    color: #666;
+}
+.teamwork-role-dropdown {
+    position: absolute;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    z-index: 1000;
+    min-width: 120px;
+    padding: 4px 0;
+}
+.teamwork-role-option {
+    display: block;
+    padding: 4px 12px;
+    color: #333;
+    text-decoration: none;
+    font-size: 12px;
+    white-space: nowrap;
+}
+.teamwork-role-option:hover {
+    background: #f0f0f0;
+}
+.teamwork-role-clear {
+    border-top: 1px solid #eee;
+    margin-top: 2px;
+    padding-top: 6px;
+}
+.teamwork-remove-individual,
+.teamwork-remove-source {
+    color: #bbb;
+    text-decoration: none;
+    font-size: 11px;
+}
+.teamwork-remove-individual:hover,
+.teamwork-remove-source:hover {
+    color: #c0392b;
+}
+
+/* Group/team row */
+.teamwork-group-row {
+    display: flex;
+    align-items: center;
+    padding: 2px 0;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+.teamwork-group-toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    text-decoration: none;
+    color: inherit;
+    flex: 1;
+    font-size: 13px;
+}
+.teamwork-group-label {
+    flex: 1;
+}
+.teamwork-caret {
+    font-size: 11px;
+    color: #999;
+}
+.teamwork-group-members {
+    list-style: none;
+    margin: 2px 0 2px 16px;
+    padding: 0;
+    width: 100%;
+    font-size: 12px;
+    color: #555;
+}
+.teamwork-group-members li {
+    padding: 1px 0;
+}
+
+/* Type-ahead picker */
+.teamwork-picker {
+    margin-top: 4px;
+    position: relative;
+}
+.teamwork-picker-input {
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 13px;
+}
+.teamwork-picker-results {
+    display: none;
+    position: absolute;
+    z-index: 1000;
+    background: #fff;
+    border: 1px solid #ccc;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    max-height: 200px;
+    overflow-y: auto;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.teamwork-picker-results li {
+    padding: 5px 8px;
+    cursor: pointer;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.teamwork-picker-results li:hover {
+    background: #f0f0f0;
+}
+.teamwork-picker-results .fa {
+    color: #666;
+    width: 14px;
+    text-align: center;
+}
+
+/* ===================================================================
+   Board card avatar stack
+   =================================================================== */
+.teamwork-avatar-stack {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 4px;
+    vertical-align: middle;
+}
+.teamwork-avatar {
+    display: inline-block;
+    border-radius: 50%;
+    border: 1px solid #fff;
+    box-sizing: content-box;
+    vertical-align: middle;
+}
+.teamwork-avatar + .teamwork-avatar,
+.teamwork-avatar + .teamwork-avatar-count {
+    margin-left: -6px;
+}
+.teamwork-avatar-letter {
+    color: #fff;
+    text-align: center;
+    font-weight: 600;
+    overflow: hidden;
+}
+.teamwork-avatar-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #666;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 600;
+    margin-left: -6px;
+    border: 1px solid #fff;
+}
+
+/* ===================================================================
+   Assignment mode settings page
+   =================================================================== */
+.teamwork-mode-option {
+    margin-bottom: 10px;
+}
+.teamwork-mode-option label {
+    font-weight: 600;
+}
+.teamwork-mode-option .form-help {
+    margin-top: 2px;
+    margin-bottom: 0;
+    padding-left: 22px;
+}
+.teamwork-custom-roles-input {
+    margin-top: 8px;
+    margin-left: 22px;
+    max-width: 400px;
+}
+
+/* ===================================================================
+   Team management page
+   =================================================================== */
+.teamwork-create-team-form {
+    margin-bottom: 20px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.teamwork-team-name-input {
+    max-width: 300px;
+}
+.teamwork-team-list {
+    margin-top: 10px;
+}
+.teamwork-team-card {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    background: #fff;
+}
+.teamwork-team-header {
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.teamwork-team-name {
+    font-weight: 600;
+}
+.teamwork-team-count {
+    color: #888;
+    font-size: 12px;
+}
+.teamwork-badge-global {
+    background: #5cb85c;
+    color: #fff;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 3px;
+}
+.teamwork-team-rename,
+.teamwork-team-delete {
+    color: #999;
+    margin-left: auto;
+    text-decoration: none;
+}
+.teamwork-team-rename:hover { color: #337ab7; }
+.teamwork-team-delete:hover { color: #d9534f; }
+.teamwork-team-toggle {
+    color: #999;
+    text-decoration: none;
+    margin-left: 4px;
+}
+.teamwork-team-body {
+    padding: 8px 12px;
+    border-top: 1px solid #eee;
+}
+.teamwork-member-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 8px;
+}
+.teamwork-member-item {
+    padding: 4px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.teamwork-member-remove {
+    color: #d9534f;
+    text-decoration: none;
+    font-size: 12px;
+}
+.teamwork-add-member {
+    position: relative;
+    margin-top: 8px;
+}
+.teamwork-member-search {
+    width: 100%;
+    max-width: 250px;
+}
+.teamwork-member-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    z-index: 1000;
+    max-width: 250px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+.teamwork-member-results a {
+    display: block;
+    padding: 6px 12px;
+    color: #333;
+    text-decoration: none;
+}
+.teamwork-member-results a:hover {
+    background: #f0f0f0;
+}
