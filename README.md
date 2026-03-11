@@ -7,7 +7,7 @@ Assign multiple users, groups, and teams to any task in [Kanboard](https://kanbo
 ### Board View - Avatar Stacks
 Each task card on the board shows colored avatar circles for all assigned team members, with a "+N" overflow indicator when there are more than two.
 
-![Board with avatar stacks](screenshots/board-overview.png)
+![Board with avatar stacks](screenshots/Board-overview.png)
 
 ### Task Detail Page
 The task detail page shows a complete assignee list below the native assignee field, with a [+] button to add more people.
