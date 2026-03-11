@@ -54,7 +54,7 @@ class BoardAvatarHelper extends Base
         if (!empty($user['avatar_path'])) {
             $url = $this->helper->url->to(
                 'AvatarFileController',
-                'show',
+                'image',
                 [
                     'user_id' => $user['user_id'],
                     'hash'    => md5($user['avatar_path'] . $size),
