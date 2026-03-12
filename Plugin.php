@@ -17,6 +17,19 @@ class Plugin extends Base
     {
         $container = $this->container;
 
+        // Per-project enablement check (defaults to enabled for backward compatibility).
+        // Note: Kanboard's MetadataModel::get() uses ?: which treats "0" as falsy,
+        // so we check the raw database value directly to handle disabled ("0") correctly.
+        $isEnabled = function (int $projectId) use ($container): bool {
+            $value = $container['db']
+                ->table('project_has_metadata')
+                ->eq('project_id', $projectId)
+                ->eq('name', 'teamwork_enabled')
+                ->findOneColumn('value');
+            // null = never set → default enabled; "1" = enabled; "0" = disabled
+            return $value !== '0';
+        };
+
         // Register BoardAvatarHelper in the template helper subsystem
         // (getClasses registers it in the main container, but templates
         // access helpers via $this->helper->name which uses a separate registry)
@@ -65,7 +78,10 @@ class Plugin extends Base
         $this->template->hook->attachCallable(
             'template:task:details:third-column',
             'TeamWork:assignee/show',
-            function (array $task) use ($container) {
+            function (array $task) use ($container, $isEnabled) {
+                if (!$isEnabled((int) $task['project_id'])) {
+                    return ['tw_assignees' => []];
+                }
                 $mode = $container['projectMetadataModel']->get(
                     $task['project_id'], 'teamwork_assignment_mode', 'equal'
                 );
@@ -87,13 +103,16 @@ class Plugin extends Base
         $this->template->hook->attachCallable(
             'template:task:form:second-column',
             'TeamWork:assignee/form_widget',
-            function (array $values) use ($container) {
+            function (array $values) use ($container, $isEnabled) {
                 // Only show when editing existing tasks (not during creation)
                 if (empty($values['id'])) {
                     return ['tw_show_widget' => false];
                 }
                 $taskId = (int) $values['id'];
                 $projectId = (int) $values['project_id'];
+                if (!$isEnabled($projectId)) {
+                    return ['tw_show_widget' => false];
+                }
                 $assignees = $container['taskAssigneeModel']->getAssigneesForTask($taskId);
                 $csrfToken = $container['token']->getReusableCSRFToken();
                 $mode = $container['projectMetadataModel']->get(
@@ -114,8 +133,14 @@ class Plugin extends Base
             }
         );
 
-        // Sidebar hook — adds Assignment Mode and Team Management links to project settings
-        $this->template->hook->attach('template:project:sidebar', 'TeamWork:settings/sidebar');
+        // Sidebar hook — adds TeamWork settings links to project settings sidebar
+        $this->template->hook->attachCallable(
+            'template:project:sidebar',
+            'TeamWork:settings/sidebar',
+            function (array $project) use ($isEnabled) {
+                return ['tw_enabled' => $isEnabled((int) $project['id']) ? '1' : '0'];
+            }
+        );
 
         // Assets — loaded on every page
         $this->hook->on('template:layout:js',  ['template' => 'plugins/TeamWork/Asset/teamwork.js']);
@@ -125,7 +150,10 @@ class Plugin extends Base
         $this->template->hook->attachCallable(
             'template:board:private:task:after-title',
             'TeamWork:board/avatar_stack',
-            function (array $task) use ($container) {
+            function (array $task) use ($container, $isEnabled) {
+                if (!$isEnabled((int) $task['project_id'])) {
+                    return ['tw_assignees' => []];
+                }
                 return [
                     'tw_assignees' => $container['boardAvatarHelper']
                         ->getAssigneesForTask($task['id'], $task['project_id']),
@@ -137,7 +165,10 @@ class Plugin extends Base
         $this->template->hook->attachCallable(
             'template:board:public:task:after-title',
             'TeamWork:board/avatar_stack',
-            function (array $task) use ($container) {
+            function (array $task) use ($container, $isEnabled) {
+                if (!$isEnabled((int) $task['project_id'])) {
+                    return ['tw_assignees' => []];
+                }
                 return [
                     'tw_assignees' => $container['boardAvatarHelper']
                         ->getAssigneesForTask($task['id'], $task['project_id']),
@@ -160,8 +191,11 @@ class Plugin extends Base
         ];
 
         foreach ($standardEvents as $eventName) {
-            $this->dispatcher->addListener($eventName, function (GenericEvent $event, $eventName) use ($container) {
-                $container['notificationDispatcher']->handle($event->getAll(), $eventName);
+            $this->dispatcher->addListener($eventName, function (GenericEvent $event, $eventName) use ($container, $isEnabled) {
+                $data = $event->getAll();
+                $projectId = (int) ($data['task']['project_id'] ?? $data['project_id'] ?? 0);
+                if (!$isEnabled($projectId)) return;
+                $container['notificationDispatcher']->handle($data, $eventName);
             }, -10);
         }
 
@@ -172,8 +206,11 @@ class Plugin extends Base
         ];
 
         foreach ($commentEvents as $eventName) {
-            $this->dispatcher->addListener($eventName, function (GenericEvent $event, $eventName) use ($container) {
-                $container['notificationDispatcher']->handle($event->getAll(), $eventName);
+            $this->dispatcher->addListener($eventName, function (GenericEvent $event, $eventName) use ($container, $isEnabled) {
+                $data = $event->getAll();
+                $projectId = (int) ($data['task']['project_id'] ?? $data['project_id'] ?? 0);
+                if (!$isEnabled($projectId)) return;
+                $container['notificationDispatcher']->handle($data, $eventName);
             }, -10);
         }
 
@@ -185,32 +222,46 @@ class Plugin extends Base
         ];
 
         foreach ($subtaskEvents as $eventName) {
-            $this->dispatcher->addListener($eventName, function (GenericEvent $event, $eventName) use ($container) {
-                $container['notificationDispatcher']->handle($event->getAll(), $eventName);
+            $this->dispatcher->addListener($eventName, function (GenericEvent $event, $eventName) use ($container, $isEnabled) {
+                $data = $event->getAll();
+                $projectId = (int) ($data['task']['project_id'] ?? $data['project_id'] ?? 0);
+                if (!$isEnabled($projectId)) return;
+                $container['notificationDispatcher']->handle($data, $eventName);
             }, -10);
         }
 
         // --- Column move automation listener ---
         // Fires automation rules when a task moves to a column
-        $this->dispatcher->addListener(TaskModel::EVENT_MOVE_COLUMN, function (GenericEvent $event, $eventName) use ($container) {
-            $container['columnMoveListener']->handle($event->getAll(), $eventName);
+        $this->dispatcher->addListener(TaskModel::EVENT_MOVE_COLUMN, function (GenericEvent $event, $eventName) use ($container, $isEnabled) {
+            $data = $event->getAll();
+            $projectId = (int) ($data['task']['project_id'] ?? $data['project_id'] ?? 0);
+            if (!$isEnabled($projectId)) return;
+            $container['columnMoveListener']->handle($data, $eventName);
         }, -20);
 
         // Also fire automation rules on task.update if column changed (API moves)
-        $this->dispatcher->addListener(TaskModel::EVENT_UPDATE, function (GenericEvent $event, $eventName) use ($container) {
+        $this->dispatcher->addListener(TaskModel::EVENT_UPDATE, function (GenericEvent $event, $eventName) use ($container, $isEnabled) {
             $eventData = $event->getAll();
+            $projectId = (int) ($eventData['task']['project_id'] ?? $eventData['project_id'] ?? 0);
+            if (!$isEnabled($projectId)) return;
             if (isset($eventData['changes']['column_id'])) {
                 $container['columnMoveListener']->handle($eventData, $eventName);
             }
         }, -20);
 
         // Custom TeamWork assignee events (assignee change handler)
-        $this->dispatcher->addListener('teamwork.assignee.add', function (GenericEvent $event, $eventName) use ($container) {
-            $container['notificationDispatcher']->handleAssigneeChange($event->getAll(), $eventName);
+        $this->dispatcher->addListener('teamwork.assignee.add', function (GenericEvent $event, $eventName) use ($container, $isEnabled) {
+            $data = $event->getAll();
+            $projectId = (int) ($data['task']['project_id'] ?? $data['project_id'] ?? 0);
+            if (!$isEnabled($projectId)) return;
+            $container['notificationDispatcher']->handleAssigneeChange($data, $eventName);
         }, -10);
 
-        $this->dispatcher->addListener('teamwork.assignee.remove', function (GenericEvent $event, $eventName) use ($container) {
-            $container['notificationDispatcher']->handleAssigneeChange($event->getAll(), $eventName);
+        $this->dispatcher->addListener('teamwork.assignee.remove', function (GenericEvent $event, $eventName) use ($container, $isEnabled) {
+            $data = $event->getAll();
+            $projectId = (int) ($data['task']['project_id'] ?? $data['project_id'] ?? 0);
+            if (!$isEnabled($projectId)) return;
+            $container['notificationDispatcher']->handleAssigneeChange($data, $eventName);
         }, -10);
 
         // --- Search filter extensions ---
@@ -230,11 +281,19 @@ class Plugin extends Base
         });
 
         // --- My Tasks dashboard extension ---
-        // Include tasks where current user is a TeamWork assignee in any role
+        // Include tasks where current user is a TeamWork assignee (only from enabled projects).
+        // Default is enabled, so exclude only projects explicitly disabled (value = '0').
         $this->hook->on('pagination:dashboard:task:query', function (&$query) {
             $userId = (int) $this->userSession->getId();
             $query->addCondition(
-                'tasks.id IN (SELECT task_id FROM teamwork_task_assignees WHERE user_id = ' . $userId . ') OR tasks.owner_id = ' . $userId
+                'tasks.id IN (SELECT ta.task_id FROM teamwork_task_assignees ta'
+                . ' WHERE ta.user_id = ' . $userId
+                . ' AND NOT EXISTS ('
+                . '   SELECT 1 FROM project_has_metadata pm'
+                . '   WHERE pm.project_id = tasks.project_id'
+                . '   AND pm.name = \'teamwork_enabled\' AND pm.value = \'0\''
+                . ' ))'
+                . ' OR tasks.owner_id = ' . $userId
             );
         });
     }

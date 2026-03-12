@@ -1,6 +1,8 @@
 <?php
 // Variables available: $task, $tw_assignment_mode, $tw_custom_roles, $tw_assignees, $tw_csrf_token
 // Injected via template:task:details:third-column attachCallable hook
+// When TeamWork is disabled for this project, only tw_assignees (empty) is passed — exit early.
+if (empty($tw_csrf_token)) return;
 $assignees      = $tw_assignees;
 $csrfToken      = $tw_csrf_token;
 $searchUrl      = $this->helper->url->to('AssigneeController', 'search',

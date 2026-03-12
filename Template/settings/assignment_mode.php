@@ -1,12 +1,25 @@
 <div class="page-header">
-    <h2><?= t('Assignment Mode') ?></h2>
+    <h2><?= t('TeamWork Settings') ?></h2>
 </div>
 
 <form method="post" action="<?= $this->url->href('SettingsController', 'saveAssignmentMode', ['project_id' => $project['id'], 'plugin' => 'TeamWork']) ?>">
     <?= $this->form->csrf() ?>
 
     <fieldset>
-        <legend><?= t('How should roles work for this project?') ?></legend>
+        <legend><?= t('Enable / Disable') ?></legend>
+        <div class="teamwork-mode-option">
+            <label>
+                <input type="checkbox" name="teamwork_enabled" value="1"
+                    <?= $enabled === '1' ? 'checked="checked"' : '' ?>>
+                <?= t('Enable multi-person task assignment for this project') ?>
+            </label>
+            <p class="form-help"><?= t('When disabled, this project uses standard Kanboard single-assignee behavior.') ?></p>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend><?= t('Assignment Mode') ?></legend>
+        <p class="form-help"><?= t('How should roles work for this project?') ?></p>
 
         <div class="teamwork-mode-option">
             <label>
