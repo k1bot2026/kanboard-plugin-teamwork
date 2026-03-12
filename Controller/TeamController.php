@@ -30,9 +30,10 @@ class TeamController extends BaseController
         unset($team);
 
         $this->response->html($this->helper->layout->project('TeamWork:team/index', [
-            'project' => $project,
-            'teams'   => $teams,
-            'title'   => t('Team Management'),
+            'project'    => $project,
+            'teams'      => $teams,
+            'csrf_token' => $this->token->getReusableCSRFToken(),
+            'title'      => t('Team Management'),
         ]));
     }
 

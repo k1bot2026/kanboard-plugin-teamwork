@@ -1,6 +1,6 @@
 # TeamWork - Multi-Person Task Assignment for Kanboard
 
-Assign multiple users, groups, and teams to any task in [Kanboard](https://kanboard.org). TeamWork extends Kanboard's native single-assignee model with a full multi-assignee workflow, visible everywhere: on the board, in task detail views, and in the task edit modal.
+Assign multiple users, groups, and teams to any task in [Kanboard](https://kanboard.org). TeamWork extends Kanboard's native single-assignee model with a full multi-assignee workflow, visible everywhere: on the board, in task detail views, and in the task edit modal. The plugin can be enabled or disabled per project, so teams that only need single-assignee behavior are not affected.
 
 ## Screenshots
 
@@ -24,14 +24,20 @@ When you click the edit icon on a board card, the popup includes a "Team Assigne
 
 ![Edit modal with assignees](screenshots/edit-modal-assignees.png)
 
-### Assignment Mode Settings
-Choose how roles work for your project: equal status, primary + helpers, or fully custom roles.
+### TeamWork Settings
+Enable or disable multi-person assignment per project, and choose how roles work: equal status, primary + helpers, or fully custom roles.
 
-![Assignment mode settings](screenshots/settings-assignment-mode.png)
+![TeamWork settings](screenshots/settings-teamwork.png)
 
 ---
 
 ## Features
+
+### Per-Project Enable/Disable
+- **Enable or disable** TeamWork independently for each project
+- When disabled, the project uses standard Kanboard single-assignee behavior
+- No avatar stacks, no team assignee sections, no extra sidebar links — just vanilla Kanboard
+- Enabled by default so existing installations keep working
 
 ### Multi-Assignee Management
 - **Assign users** individually via a type-ahead search picker
@@ -154,10 +160,19 @@ volumes:
 - **Change a role**: Click the role label (or "Set role" link) to see the role dropdown
 - **Expand group members**: Click the group name to see all members
 
+### Enabling / Disabling TeamWork
+
+1. Go to your project settings (gear icon > project settings)
+2. In the sidebar, click **TeamWork Settings**
+3. Check or uncheck **Enable multi-person task assignment for this project**
+4. Click **Save**
+
+When disabled, all TeamWork features (avatar stacks, team assignees, automation rules) are hidden and the project behaves like standard Kanboard.
+
 ### Configuring Assignment Modes
 
 1. Go to your project settings (gear icon > project settings)
-2. In the sidebar, click **Assignment Mode**
+2. In the sidebar, click **TeamWork Settings**
 3. Choose your preferred mode:
    - **Equal Assignees**: No roles, everyone is equal
    - **Primary + Helpers**: First assignee is Primary, rest are Helpers
@@ -221,7 +236,7 @@ TeamWork/
     assignee/picker.php         # Type-ahead search picker
     board/avatar_stack.php      # Avatar circles on board cards
     settings/sidebar.php        # Sidebar links for project settings
-    settings/assignment_mode.php # Assignment mode config page
+    settings/assignment_mode.php # TeamWork settings page (enable/disable + assignment mode)
     team/index.php              # Team management page
     team/members.php            # Team members partial
     automation/index.php        # Automation rules page

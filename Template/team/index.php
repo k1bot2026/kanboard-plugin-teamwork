@@ -2,7 +2,7 @@
     <h2><?= t('Team Management') ?></h2>
 </div>
 
-<form class="teamwork-create-team-form" data-create-url="<?= $this->url->href('TeamController', 'create', ['project_id' => $project['id'], 'plugin' => 'TeamWork']) ?>" data-csrf="<?= $this->token->getReusableCSRFToken() ?>">
+<form class="teamwork-create-team-form" data-create-url="<?= $this->url->href('TeamController', 'create', ['project_id' => $project['id'], 'plugin' => 'TeamWork']) ?>" data-csrf="<?= $this->text->e($csrf_token) ?>">
     <input type="text" name="name" placeholder="<?= t('New team name...') ?>" class="teamwork-team-name-input" required>
     <button type="submit" class="btn btn-blue"><?= t('Create Team') ?></button>
 </form>
@@ -16,7 +16,7 @@
      data-add-member-url="<?= $this->url->href('TeamController', 'addMember', ['project_id' => $project['id'], 'plugin' => 'TeamWork']) ?>"
      data-remove-member-url="<?= $this->url->href('TeamController', 'removeMember', ['project_id' => $project['id'], 'plugin' => 'TeamWork']) ?>"
      data-search-members-url="<?= $this->url->href('TeamController', 'searchMembers', ['project_id' => $project['id'], 'plugin' => 'TeamWork']) ?>"
-     data-csrf="<?= $this->token->getReusableCSRFToken() ?>"
+     data-csrf="<?= $this->text->e($csrf_token) ?>"
      data-project-id="<?= (int)$project['id'] ?>">
 
     <?php foreach ($teams as $team): ?>
