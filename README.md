@@ -59,7 +59,7 @@ graph TD
 
 - **Assign users** individually via a type-ahead search picker
 - **Assign groups** (Kanboard native groups) -- all group members are added at once
-- **Assign teams** (plugin-defined project teams) -- create reusable teams per project
+- **Assign teams** (plugin-defined project teams) -- create reusable teams per project. Teams are **live-linked**: a team shows on the card by its own name (even when it has no members yet), and adding or removing a member of the team updates every card the team is assigned to
 - **Remove** individual assignees, entire groups, or entire teams with one click
 - **Primary assignee sync** -- the first assignee by position is automatically synced to Kanboard's native `owner_id` field, keeping compatibility with built-in features
 

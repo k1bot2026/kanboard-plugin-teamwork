@@ -26,14 +26,8 @@ $updateRoleUrl  = $this->helper->url->to('AssigneeController', 'updateRole',
 $tw_assignment_mode = isset($tw_assignment_mode) ? $tw_assignment_mode : 'equal';
 $tw_custom_roles    = isset($tw_custom_roles) ? $tw_custom_roles : '';
 
-// Group assignees by their source for rendering
-$grouped = [];
-foreach ($assignees as $a) {
-    $key = $a['source_type'] . '_' . ($a['source_id'] ?? 0);
-    $grouped[$key]['source_type'] = $a['source_type'];
-    $grouped[$key]['source_id']   = $a['source_id'];
-    $grouped[$key]['members'][]   = $a;
-}
+// Structured assignment view (individuals / teams / groups) built server-side.
+$view = isset($tw_view) ? $tw_view : ['individuals' => [], 'teams' => [], 'groups' => []];
 ?>
 
 <!-- TeamWork multi-assignee widget inside the task edit modal -->
@@ -55,72 +49,7 @@ foreach ($assignees as $a) {
         </button>
 
         <!-- Grouped assignee list -->
-        <?php if (!empty($grouped)): ?>
-        <ul class="teamwork-assignee-list">
-            <?php foreach ($grouped as $group): ?>
-                <?php if ($group['source_type'] === 'user'): ?>
-                    <?php foreach ($group['members'] as $a): ?>
-                    <li class="teamwork-assignee-item" data-assignee-id="<?= (int)$a['id'] ?>">
-                        <i class="fa fa-user teamwork-type-icon"></i>
-                        <span class="teamwork-assignee-name">
-                            <?= $this->text->e($a['name'] ?: $a['username']) ?>
-                            <?php if ($tw_assignment_mode !== 'equal'): ?>
-                                <?php if (!empty($a['role'])): ?>
-                                    <span class="teamwork-role-label teamwork-role-clickable" data-assignee-id="<?= (int)$a['id'] ?>"><?= $this->text->e($a['role']) ?></span>
-                                <?php else: ?>
-                                    <a href="#" class="teamwork-set-role" data-assignee-id="<?= (int)$a['id'] ?>"><?= t('Set role') ?></a>
-                                <?php endif ?>
-                            <?php endif ?>
-                        </span>
-                        <a href="#" class="teamwork-remove-individual"
-                           data-assignee-id="<?= (int)$a['id'] ?>"
-                           title="<?= t('Remove') ?>"><i class="fa fa-times"></i></a>
-                    </li>
-                    <?php endforeach ?>
-                <?php elseif ($group['source_type'] === 'group'): ?>
-                    <?php $first = $group['members'][0]; $count = count($group['members']); ?>
-                    <li class="teamwork-group-row" data-source-type="group" data-source-id="<?= (int)$group['source_id'] ?>">
-                        <a href="#" class="teamwork-group-toggle">
-                            <i class="fa fa-users teamwork-type-icon"></i>
-                            <span class="teamwork-group-label">
-                                <?= $this->text->e($first['name'] ?: $first['username']) ?><?php if ($count > 1): ?>&nbsp;(<?= $count ?>)<?php endif ?>
-                            </span>
-                            <i class="fa fa-caret-down teamwork-caret"></i>
-                        </a>
-                        <a href="#" class="teamwork-remove-source"
-                           data-source-type="group"
-                           data-source-id="<?= (int)$group['source_id'] ?>"
-                           title="<?= t('Remove all') ?>"><i class="fa fa-times"></i></a>
-                        <ul class="teamwork-group-members" style="display:none;">
-                            <?php foreach ($group['members'] as $a): ?>
-                            <li><?= $this->text->e($a['name'] ?: $a['username']) ?></li>
-                            <?php endforeach ?>
-                        </ul>
-                    </li>
-                <?php elseif ($group['source_type'] === 'team'): ?>
-                    <?php $first = $group['members'][0]; $count = count($group['members']); ?>
-                    <li class="teamwork-group-row" data-source-type="team" data-source-id="<?= (int)$group['source_id'] ?>">
-                        <a href="#" class="teamwork-group-toggle">
-                            <i class="fa fa-sitemap teamwork-type-icon"></i>
-                            <span class="teamwork-group-label">
-                                <?= $this->text->e($first['name'] ?: $first['username']) ?><?php if ($count > 1): ?>&nbsp;(<?= $count ?>)<?php endif ?>
-                            </span>
-                            <i class="fa fa-caret-down teamwork-caret"></i>
-                        </a>
-                        <a href="#" class="teamwork-remove-source"
-                           data-source-type="team"
-                           data-source-id="<?= (int)$group['source_id'] ?>"
-                           title="<?= t('Remove all') ?>"><i class="fa fa-times"></i></a>
-                        <ul class="teamwork-group-members" style="display:none;">
-                            <?php foreach ($group['members'] as $a): ?>
-                            <li><?= $this->text->e($a['name'] ?: $a['username']) ?></li>
-                            <?php endforeach ?>
-                        </ul>
-                    </li>
-                <?php endif ?>
-            <?php endforeach ?>
-        </ul>
-        <?php endif ?>
+        <?php include __DIR__ . '/list.php' ?>
 
         <?php // Inline picker (same as show.php) ?>
         <div class="teamwork-picker" style="display:none;"

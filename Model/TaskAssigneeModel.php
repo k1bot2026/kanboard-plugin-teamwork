@@ -16,6 +16,7 @@ class TaskAssigneeModel extends Base
     const TABLE = 'teamwork_task_assignees';
     const TEAMS_TABLE = 'teamwork_teams';
     const TEAM_MEMBERS_TABLE = 'teamwork_team_members';
+    const TASK_TEAMS_TABLE = 'teamwork_task_teams';
 
     /**
      * Get all assignees for a task, joined with user info, ordered by position.
@@ -134,10 +135,14 @@ class TaskAssigneeModel extends Base
     }
 
     /**
-     * Expand a plugin-defined team onto a task.
+     * Link a plugin-defined team to a task (live link).
      *
-     * Fetches team members from teamwork_team_members and adds each as an assignee
-     * with source_type='team' and source_id=$teamId. Duplicates are silently skipped.
+     * Records the task<->team association in teamwork_task_teams so the team is
+     * visible on the card even when it has no members yet. Also materializes the
+     * team's CURRENT members as assignee rows (source_type='team', source_id=$teamId)
+     * so the rest of the plugin (owner sync, notifications, filters, board avatars)
+     * keeps working. Idempotent: safe to call repeatedly; it also re-syncs any
+     * members that are missing.
      *
      * @param int $taskId
      * @param int $teamId
@@ -145,6 +150,22 @@ class TaskAssigneeModel extends Base
      */
     public function addTeam(int $taskId, int $teamId): int
     {
+        // Record the association (idempotent)
+        $exists = $this->db
+            ->table(self::TASK_TEAMS_TABLE)
+            ->eq('task_id', $taskId)
+            ->eq('team_id', $teamId)
+            ->exists();
+
+        if (!$exists) {
+            $this->db->table(self::TASK_TEAMS_TABLE)->insert([
+                'task_id'    => $taskId,
+                'team_id'    => $teamId,
+                'created_at' => time(),
+            ]);
+        }
+
+        // Materialize current members
         $members = $this->db
             ->table(self::TEAM_MEMBERS_TABLE)
             ->columns(self::TEAM_MEMBERS_TABLE . '.user_id')
@@ -161,6 +182,89 @@ class TaskAssigneeModel extends Base
         }
 
         return $added;
+    }
+
+    /**
+     * Get the teams linked to a task, joined with team name.
+     *
+     * Returns every linked team — including teams that currently have no
+     * members — so an empty team still renders on the card.
+     *
+     * @param int $taskId
+     * @return array Array of ['team_id', 'name'] rows ordered by name
+     */
+    public function getTaskTeams(int $taskId): array
+    {
+        return $this->db
+            ->table(self::TASK_TEAMS_TABLE)
+            ->columns(
+                self::TASK_TEAMS_TABLE . '.team_id',
+                self::TEAMS_TABLE . '.name'
+            )
+            ->join(self::TEAMS_TABLE, 'id', 'team_id', self::TASK_TEAMS_TABLE)
+            ->eq(self::TASK_TEAMS_TABLE . '.task_id', $taskId)
+            ->asc(self::TEAMS_TABLE . '.name')
+            ->findAll();
+    }
+
+    /**
+     * Build the structured assignment view for rendering (PHP templates + AJAX).
+     *
+     * Returns three buckets:
+     *   - individuals: assignee rows with source_type='user'
+     *   - teams:       one entry per linked team {id, name, members[]} — includes empty teams
+     *   - groups:      one entry per Kanboard group present {id, name, members[]}
+     *
+     * Team/group entries carry the real team/group NAME (not a member's name).
+     *
+     * @param int $taskId
+     * @return array
+     */
+    public function getAssignmentView(int $taskId): array
+    {
+        $assignees = $this->getAssigneesForTask($taskId);
+
+        $individuals = [];
+        $teamMembers = [];   // team_id => [rows]
+        $groupMembers = [];  // group_id => [rows]
+
+        foreach ($assignees as $a) {
+            if ($a['source_type'] === 'team') {
+                $teamMembers[(int) $a['source_id']][] = $a;
+            } elseif ($a['source_type'] === 'group') {
+                $groupMembers[(int) $a['source_id']][] = $a;
+            } else {
+                $individuals[] = $a;
+            }
+        }
+
+        // Teams come from the association table so empty teams are included.
+        $teams = [];
+        foreach ($this->getTaskTeams($taskId) as $team) {
+            $teamId = (int) $team['team_id'];
+            $teams[] = [
+                'id'      => $teamId,
+                'name'    => $team['name'],
+                'members' => $teamMembers[$teamId] ?? [],
+            ];
+        }
+
+        // Groups are only known through their materialized member rows.
+        $groups = [];
+        foreach ($groupMembers as $groupId => $members) {
+            $group = $this->groupModel->getById($groupId);
+            $groups[] = [
+                'id'      => $groupId,
+                'name'    => !empty($group['name']) ? $group['name'] : t('Group'),
+                'members' => $members,
+            ];
+        }
+
+        return [
+            'individuals' => $individuals,
+            'teams'       => $teams,
+            'groups'      => $groups,
+        ];
     }
 
     /**
@@ -209,6 +313,13 @@ class TaskAssigneeModel extends Base
      */
     public function removeTeam(int $taskId, int $teamId): int
     {
+        // Drop the task<->team association first
+        $this->db
+            ->table(self::TASK_TEAMS_TABLE)
+            ->eq('task_id', $taskId)
+            ->eq('team_id', $teamId)
+            ->remove();
+
         $count = $this->db
             ->table(self::TABLE)
             ->eq('task_id', $taskId)
@@ -229,6 +340,129 @@ class TaskAssigneeModel extends Base
         }
 
         return $count;
+    }
+
+    /**
+     * Propagate a newly-added team member to every task the team is linked to.
+     *
+     * Keeps live-linked teams in sync: when a user joins a team, they appear on
+     * all cards that team is assigned to. Duplicates are silently skipped.
+     *
+     * @param int $teamId
+     * @param int $userId
+     * @return void
+     */
+    public function syncTeamMemberAdded(int $teamId, int $userId): void
+    {
+        $taskIds = $this->db
+            ->table(self::TASK_TEAMS_TABLE)
+            ->eq('team_id', $teamId)
+            ->findAllByColumn('task_id');
+
+        foreach ($taskIds as $taskId) {
+            $this->addAssignee((int) $taskId, $userId, null, 'team', $teamId);
+        }
+    }
+
+    /**
+     * Detach a team from every task: drop all associations and all materialized
+     * member rows for the team, then resync affected tasks. Used when a team is
+     * deleted so no orphaned assignees linger on cards.
+     *
+     * @param int $teamId
+     * @return void
+     */
+    public function removeTeamFromAllTasks(int $teamId): void
+    {
+        $taskIds = $this->db
+            ->table(self::TABLE)
+            ->eq('source_type', 'team')
+            ->eq('source_id', $teamId)
+            ->findAllByColumn('task_id');
+
+        $taskIds = array_unique(array_map('intval', $taskIds));
+
+        $this->db
+            ->table(self::TABLE)
+            ->eq('source_type', 'team')
+            ->eq('source_id', $teamId)
+            ->remove();
+
+        $this->db
+            ->table(self::TASK_TEAMS_TABLE)
+            ->eq('team_id', $teamId)
+            ->remove();
+
+        foreach ($taskIds as $taskId) {
+            $this->resequencePositions($taskId);
+            $this->syncPrimaryAssignee($taskId);
+        }
+    }
+
+    /**
+     * Propagate a removed team member off every task the team is linked to.
+     *
+     * Only removes the team-sourced row for this user (a direct user assignment
+     * is preserved). If another team linked to the same task still contains the
+     * user, they are re-linked under that team so they stay visible.
+     *
+     * @param int $teamId
+     * @param int $userId
+     * @return void
+     */
+    public function syncTeamMemberRemoved(int $teamId, int $userId): void
+    {
+        $taskIds = $this->db
+            ->table(self::TASK_TEAMS_TABLE)
+            ->eq('team_id', $teamId)
+            ->findAllByColumn('task_id');
+
+        foreach ($taskIds as $taskId) {
+            $taskId = (int) $taskId;
+
+            $removed = $this->db
+                ->table(self::TABLE)
+                ->eq('task_id', $taskId)
+                ->eq('user_id', $userId)
+                ->eq('source_type', 'team')
+                ->eq('source_id', $teamId)
+                ->remove();
+
+            if (!$removed) {
+                continue;
+            }
+
+            $otherTeamId = $this->findOtherTeamWithMember($taskId, $teamId, $userId);
+            if ($otherTeamId !== null) {
+                $this->addAssignee($taskId, $userId, null, 'team', $otherTeamId);
+            }
+
+            $this->resequencePositions($taskId);
+            $this->syncPrimaryAssignee($taskId);
+        }
+    }
+
+    /**
+     * Find another team (besides $excludeTeamId) linked to $taskId that still
+     * has $userId as a member.
+     *
+     * @param int $taskId
+     * @param int $excludeTeamId
+     * @param int $userId
+     * @return int|null
+     */
+    private function findOtherTeamWithMember(int $taskId, int $excludeTeamId, int $userId): ?int
+    {
+        $result = $this->db
+            ->table(self::TASK_TEAMS_TABLE)
+            ->columns(self::TASK_TEAMS_TABLE . '.team_id')
+            ->join(self::TEAM_MEMBERS_TABLE, 'team_id', 'team_id', self::TASK_TEAMS_TABLE)
+            ->eq(self::TASK_TEAMS_TABLE . '.task_id', $taskId)
+            ->eq(self::TEAM_MEMBERS_TABLE . '.user_id', $userId)
+            ->neq(self::TASK_TEAMS_TABLE . '.team_id', $excludeTeamId)
+            ->findOneColumn(self::TASK_TEAMS_TABLE . '.team_id');
+
+        return ($result !== null && $result !== false) ? (int) $result : null;
     }
 
     /**
