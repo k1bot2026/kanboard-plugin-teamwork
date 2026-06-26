@@ -34,84 +34,85 @@
     }
 
     // ---------------------------------------------------------------
-    // Helper: build the assignee list HTML from a flat assignees array
-    // (same structure as the PHP template loop in show.php)
+    // Helper: build a group/team row (icon, name + count, members sublist)
+    // Mirrors Template/assignee/list.php so AJAX re-render matches the
+    // server-rendered markup exactly. Empty teams show a placeholder.
     // ---------------------------------------------------------------
-    function renderAssigneeList($extension, assignees) {
-        var $list = $extension.find('.teamwork-assignee-list');
+    function buildSourceRow(sourceType, iconClass, src) {
+        var members = src.members || [];
+        var membersHtml = '';
+
+        if (!members.length && sourceType === 'team') {
+            membersHtml = '<li class="teamwork-empty-team"><em>No members yet</em></li>';
+        } else {
+            $.each(members, function (_, a) {
+                membersHtml += '<li>' + escapeHtml(a.name || a.username) + '</li>';
+            });
+        }
+
+        var sid = parseInt(src.id, 10);
+        return '<li class="teamwork-group-row" data-source-type="' + sourceType + '" data-source-id="' + sid + '">' +
+            '<a href="#" class="teamwork-group-toggle">' +
+                '<i class="' + iconClass + ' teamwork-type-icon"></i>' +
+                '<span class="teamwork-group-label">' + escapeHtml(src.name) + '&nbsp;(' + members.length + ')</span>' +
+                '<i class="fa fa-caret-down teamwork-caret"></i>' +
+            '</a>' +
+            '<a href="#" class="teamwork-remove-source" data-source-type="' + sourceType + '" data-source-id="' + sid + '" title="Remove all">' +
+                '<i class="fa fa-times"></i>' +
+            '</a>' +
+            '<ul class="teamwork-group-members" style="display:none;">' + membersHtml + '</ul>' +
+        '</li>';
+    }
+
+    // ---------------------------------------------------------------
+    // Helper: build the assignee list HTML from the structured view
+    // ({ individuals, teams, groups }) returned by the controller.
+    // ---------------------------------------------------------------
+    function renderAssigneeList($extension, view) {
         var mode = $extension.attr('data-assignment-mode') || 'equal';
+
+        view = view || {};
+        var individuals = view.individuals || [];
+        var teams       = view.teams || [];
+        var groups      = view.groups || [];
+
+        var $list = $extension.find('.teamwork-assignee-list');
+
+        // Nothing assigned: remove the list entirely.
+        if (!individuals.length && !teams.length && !groups.length) {
+            $list.remove();
+            return;
+        }
 
         if (!$list.length) {
             $list = $('<ul class="teamwork-assignee-list"></ul>');
             $extension.find('.teamwork-picker').before($list);
         }
-
         $list.empty();
 
-        if (!assignees || !assignees.length) {
-            $list.remove();
-            return;
-        }
-
-        // Group by source key (same logic as PHP)
-        var grouped = {};
-        var groupOrder = [];
-        $.each(assignees, function (_, a) {
-            var key = a.source_type + '_' + (a.source_id || 0);
-            if (!grouped[key]) {
-                grouped[key] = {
-                    source_type: a.source_type,
-                    source_id:   a.source_id,
-                    members:     []
-                };
-                groupOrder.push(key);
-            }
-            grouped[key].members.push(a);
+        // Individuals
+        $.each(individuals, function (_, a) {
+            var label = a.name || a.username;
+            var roleHtml = buildRoleHtml(a, mode);
+            $list.append(
+                '<li class="teamwork-assignee-item" data-assignee-id="' + parseInt(a.id, 10) + '">' +
+                    '<i class="fa fa-user teamwork-type-icon"></i>' +
+                    '<span class="teamwork-assignee-name">' + escapeHtml(label) + roleHtml + '</span>' +
+                    '<a href="#" class="teamwork-remove-individual" data-assignee-id="' + parseInt(a.id, 10) + '" title="Remove">' +
+                        '<i class="fa fa-times"></i>' +
+                    '</a>' +
+                '</li>'
+            );
         });
 
-        $.each(groupOrder, function (_, key) {
-            var g = grouped[key];
+        // Groups
+        $.each(groups, function (_, g) {
+            $list.append(buildSourceRow('group', 'fa fa-users', g));
+        });
 
-            if (g.source_type === 'user') {
-                $.each(g.members, function (_, a) {
-                    var label = a.name || a.username;
-                    var roleHtml = buildRoleHtml(a, mode);
-                    $list.append(
-                        '<li class="teamwork-assignee-item" data-assignee-id="' + parseInt(a.id, 10) + '">' +
-                            '<i class="fa fa-user teamwork-type-icon"></i>' +
-                            '<span class="teamwork-assignee-name">' + escapeHtml(label) + roleHtml + '</span>' +
-                            '<a href="#" class="teamwork-remove-individual" data-assignee-id="' + parseInt(a.id, 10) + '" title="Remove">' +
-                                '<i class="fa fa-times"></i>' +
-                            '</a>' +
-                        '</li>'
-                    );
-                });
-            } else {
-                // group or team
-                var iconClass = g.source_type === 'group' ? 'fa fa-users' : 'fa fa-sitemap';
-                var first = g.members[0];
-                var firstLabel = first.name || first.username;
-                var countLabel = g.members.length > 1 ? '&nbsp;(' + g.members.length + ')' : '';
-
-                var membersHtml = '';
-                $.each(g.members, function (_, a) {
-                    membersHtml += '<li>' + escapeHtml(a.name || a.username) + '</li>';
-                });
-
-                $list.append(
-                    '<li class="teamwork-group-row" data-source-type="' + g.source_type + '" data-source-id="' + parseInt(g.source_id, 10) + '">' +
-                        '<a href="#" class="teamwork-group-toggle">' +
-                            '<i class="' + iconClass + ' teamwork-type-icon"></i>' +
-                            '<span class="teamwork-group-label">' + escapeHtml(firstLabel) + countLabel + '</span>' +
-                            '<i class="fa fa-caret-down teamwork-caret"></i>' +
-                        '</a>' +
-                        '<a href="#" class="teamwork-remove-source" data-source-type="' + g.source_type + '" data-source-id="' + parseInt(g.source_id, 10) + '" title="Remove all">' +
-                            '<i class="fa fa-times"></i>' +
-                        '</a>' +
-                        '<ul class="teamwork-group-members" style="display:none;">' + membersHtml + '</ul>' +
-                    '</li>'
-                );
-            }
+        // Teams (including empty ones)
+        $.each(teams, function (_, t) {
+            $list.append(buildSourceRow('team', 'fa fa-sitemap', t));
         });
     }
 
@@ -195,7 +196,7 @@
             type:       $item.attr('data-type'),
             entity_id:  $item.attr('data-entity-id')
         }, function (response) {
-            renderAssigneeList($extension, response.assignees);
+            renderAssigneeList($extension, response.view);
             $picker.hide();
             $picker.find('.teamwork-picker-input').val('');
             $picker.find('.teamwork-picker-results').empty().hide();
@@ -214,7 +215,7 @@
         var removeUrl = $extension.attr('data-remove-url').replace('__AID__', assigneeId);
 
         $.post(removeUrl, { csrf_token: csrf }, function (response) {
-            renderAssigneeList($extension, response.assignees);
+            renderAssigneeList($extension, response.view);
         }, 'json');
     });
 
@@ -237,7 +238,7 @@
         }
 
         $.post(url, { csrf_token: csrf }, function (response) {
-            renderAssigneeList($extension, response.assignees);
+            renderAssigneeList($extension, response.view);
         }, 'json');
     });
 
@@ -326,7 +327,7 @@
             role: role
         }, function (response) {
             $dropdown.remove();
-            renderAssigneeList($extension, response.assignees);
+            renderAssigneeList($extension, response.view);
         }, 'json');
     });
 

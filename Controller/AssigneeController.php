@@ -101,6 +101,7 @@ class AssigneeController extends BaseController
         if ($this->request->isAjax()) {
             $this->response->json([
                 'assignees' => $this->taskAssigneeModel->getAssigneesForTask($task['id']),
+                'view'      => $this->taskAssigneeModel->getAssignmentView($task['id']),
             ]);
         } else {
             $this->response->redirect(
@@ -147,6 +148,7 @@ class AssigneeController extends BaseController
             $this->response->json([
                 'status'    => 'ok',
                 'assignees' => $this->taskAssigneeModel->getAssigneesForTask($task['id']),
+                'view'      => $this->taskAssigneeModel->getAssignmentView($task['id']),
             ]);
         } else {
             $this->response->redirect(
@@ -177,6 +179,7 @@ class AssigneeController extends BaseController
                 'status'    => 'ok',
                 'removed'   => $count,
                 'assignees' => $this->taskAssigneeModel->getAssigneesForTask($task['id']),
+                'view'      => $this->taskAssigneeModel->getAssignmentView($task['id']),
             ]);
         } else {
             $this->response->redirect(
@@ -207,6 +210,7 @@ class AssigneeController extends BaseController
         if ($this->request->isAjax()) {
             $this->response->json([
                 'assignees' => $this->taskAssigneeModel->getAssigneesForTask($task['id']),
+                'view'      => $this->taskAssigneeModel->getAssignmentView($task['id']),
             ]);
         } else {
             $this->response->redirect(
@@ -237,6 +241,7 @@ class AssigneeController extends BaseController
                 'status'    => 'ok',
                 'removed'   => $count,
                 'assignees' => $this->taskAssigneeModel->getAssigneesForTask($task['id']),
+                'view'      => $this->taskAssigneeModel->getAssignmentView($task['id']),
             ]);
         } else {
             $this->response->redirect(

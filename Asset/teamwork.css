@@ -144,6 +144,9 @@
 .teamwork-group-members li {
     padding: 1px 0;
 }
+.teamwork-group-members li.teamwork-empty-team {
+    color: #999;
+}
 
 /* Type-ahead picker */
 .teamwork-picker {

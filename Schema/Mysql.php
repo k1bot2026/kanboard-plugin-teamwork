@@ -4,7 +4,7 @@ namespace Kanboard\Plugin\TeamWork\Schema;
 
 use PDO;
 
-const VERSION = 2;
+const VERSION = 3;
 
 function version_1(PDO $pdo): void
 {
@@ -55,4 +55,26 @@ function version_2(PDO $pdo): void
         CONSTRAINT fk_tw_ar_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
         CONSTRAINT fk_tw_ar_column FOREIGN KEY (column_id) REFERENCES columns(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+}
+
+function version_3(PDO $pdo): void
+{
+    // Associate a team with a task as a first-class link, independent of the
+    // team's members. This makes a team visible on a card even when it has no
+    // members yet, and lets membership changes propagate to linked cards.
+    $pdo->exec('CREATE TABLE IF NOT EXISTS teamwork_task_teams (
+        task_id INT NOT NULL,
+        team_id INT NOT NULL,
+        created_at INT NOT NULL DEFAULT 0,
+        PRIMARY KEY (task_id, team_id),
+        CONSTRAINT fk_tw_tt_task FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+        CONSTRAINT fk_tw_tt_team FOREIGN KEY (team_id) REFERENCES teamwork_teams(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+
+    // Backfill links for teams that were already expanded onto tasks before
+    // this version, so previously-added teams stay visible after upgrade.
+    $pdo->exec('INSERT IGNORE INTO teamwork_task_teams (task_id, team_id, created_at)
+        SELECT DISTINCT task_id, source_id, 0
+        FROM teamwork_task_assignees
+        WHERE source_type = \'team\' AND source_id IS NOT NULL');
 }

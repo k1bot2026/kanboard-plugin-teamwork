@@ -89,11 +89,13 @@ class Plugin extends Base
                     $task['project_id'], 'teamwork_custom_roles', ''
                 );
                 $assignees = $container['taskAssigneeModel']->getAssigneesForTask($task['id']);
+                $view = $container['taskAssigneeModel']->getAssignmentView($task['id']);
                 $csrfToken = $container['token']->getReusableCSRFToken();
                 return [
                     'tw_assignment_mode' => $mode,
                     'tw_custom_roles'    => $customRoles,
                     'tw_assignees'       => $assignees,
+                    'tw_view'            => $view,
                     'tw_csrf_token'      => $csrfToken,
                 ];
             }
@@ -114,6 +116,7 @@ class Plugin extends Base
                     return ['tw_show_widget' => false];
                 }
                 $assignees = $container['taskAssigneeModel']->getAssigneesForTask($taskId);
+                $view = $container['taskAssigneeModel']->getAssignmentView($taskId);
                 $csrfToken = $container['token']->getReusableCSRFToken();
                 $mode = $container['projectMetadataModel']->get(
                     $projectId, 'teamwork_assignment_mode', 'equal'
@@ -126,6 +129,7 @@ class Plugin extends Base
                     'tw_task_id'         => $taskId,
                     'tw_project_id'      => $projectId,
                     'tw_assignees'       => $assignees,
+                    'tw_view'            => $view,
                     'tw_csrf_token'      => $csrfToken,
                     'tw_assignment_mode' => $mode,
                     'tw_custom_roles'    => $customRoles,
@@ -325,7 +329,7 @@ class Plugin extends Base
 
     public function getPluginVersion(): string
     {
-        return '1.0.0';
+        return '1.1.0';
     }
 
     public function getCompatibleVersion(): string

@@ -120,7 +120,14 @@ class TeamModel extends Base
             'user_id' => $userId,
         ]);
 
-        return $result !== false;
+        if ($result === false) {
+            return false;
+        }
+
+        // Live link: push the new member onto every task this team is assigned to.
+        $this->taskAssigneeModel->syncTeamMemberAdded($teamId, $userId);
+
+        return true;
     }
 
     /**
@@ -132,11 +139,18 @@ class TeamModel extends Base
      */
     public function removeMember(int $teamId, int $userId): bool
     {
-        return (bool) $this->db
+        $result = (bool) $this->db
             ->table(self::MEMBERS_TABLE)
             ->eq('team_id', $teamId)
             ->eq('user_id', $userId)
             ->remove();
+
+        if ($result) {
+            // Live link: pull the member off every task this team is assigned to.
+            $this->taskAssigneeModel->syncTeamMemberRemoved($teamId, $userId);
+        }
+
+        return $result;
     }
 
     /**
@@ -169,6 +183,10 @@ class TeamModel extends Base
      */
     public function deleteTeam(int $teamId): bool
     {
+        // Detach the team from all cards first so no orphaned assignee rows
+        // linger after the team (and its members) are gone.
+        $this->taskAssigneeModel->removeTeamFromAllTasks($teamId);
+
         return (bool) $this->db->table(self::TABLE)
             ->eq('id', $teamId)
             ->remove();
