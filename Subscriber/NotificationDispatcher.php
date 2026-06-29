@@ -97,11 +97,11 @@ class NotificationDispatcher extends Base
             return;
         }
 
-        // Build a user array for the notification system
-        $user = $this->db->table('users')
-            ->columns('id', 'username', 'name', 'email')
-            ->eq('id', $affectedUserId)
-            ->findOne();
+        // Load the full user record. Kanboard's UserNotificationFilterModel
+        // reads notifications_filter (and friends), so a partial array of
+        // id/username/name/email triggers "Undefined array key" warnings that
+        // can corrupt the JSON of AJAX responses when display_errors is on.
+        $user = $this->userModel->getById($affectedUserId);
 
         if (empty($user)) {
             return;
@@ -159,13 +159,14 @@ class NotificationDispatcher extends Base
                 continue;
             }
 
-            // Build user array for notification system
-            $user = [
-                'id'       => $assignee['user_id'],
-                'username' => $assignee['username'],
-                'name'     => $assignee['name'],
-                'email'    => $assignee['email'],
-            ];
+            // Load the full user record so Kanboard's notification filter has
+            // every field it needs (notifications_filter, etc.). A partial array
+            // triggers "Undefined array key" warnings that can corrupt AJAX JSON.
+            $user = $this->userModel->getById($userId);
+
+            if (empty($user)) {
+                continue;
+            }
 
             if ($this->userNotificationFilterModel->shouldReceiveNotification($user, $eventData)) {
                 $this->userNotificationModel->sendUserNotification($user, $eventName, $eventData);
