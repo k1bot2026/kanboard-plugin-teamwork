@@ -19,6 +19,49 @@ class TaskAssigneeModel extends Base
     const TASK_TEAMS_TABLE = 'teamwork_task_teams';
 
     /**
+     * Whether the task<->team table has been verified this request.
+     * @var bool
+     */
+    private static $taskTeamsTableChecked = false;
+
+    /**
+     * Defensive safety net: ensure the task<->team association table exists.
+     *
+     * The table is normally created by the schema migration (version_3). On some
+     * hosts a plugin upgrade may not re-run migrations cleanly (or a migration may
+     * have been rolled back), which would make every team-on-task query silently
+     * do nothing. This creates the table on demand if it is missing so the feature
+     * always works. It runs at most once per request.
+     *
+     * The portable DDL deliberately omits foreign keys to avoid cross-engine
+     * column-type mismatches; referential cleanup is handled in PHP
+     * (removeTeam / removeTeamFromAllTasks).
+     *
+     * @return void
+     */
+    private function ensureTaskTeamsTable(): void
+    {
+        if (self::$taskTeamsTableChecked) {
+            return;
+        }
+        self::$taskTeamsTableChecked = true;
+
+        try {
+            $this->db->getConnection()->exec(
+                'CREATE TABLE IF NOT EXISTS ' . self::TASK_TEAMS_TABLE . ' (
+                    task_id INTEGER NOT NULL,
+                    team_id INTEGER NOT NULL,
+                    created_at INTEGER NOT NULL DEFAULT 0,
+                    PRIMARY KEY (task_id, team_id)
+                )'
+            );
+        } catch (\Throwable $e) {
+            // If creation is not possible (e.g. insufficient privileges) leave it
+            // to the migration; queries will simply find no linked teams.
+        }
+    }
+
+    /**
      * Get all assignees for a task, joined with user info, ordered by position.
      *
      * @param int $taskId
@@ -150,6 +193,8 @@ class TaskAssigneeModel extends Base
      */
     public function addTeam(int $taskId, int $teamId): int
     {
+        $this->ensureTaskTeamsTable();
+
         // Record the association (idempotent)
         $exists = $this->db
             ->table(self::TASK_TEAMS_TABLE)
@@ -195,6 +240,8 @@ class TaskAssigneeModel extends Base
      */
     public function getTaskTeams(int $taskId): array
     {
+        $this->ensureTaskTeamsTable();
+
         return $this->db
             ->table(self::TASK_TEAMS_TABLE)
             ->columns(
@@ -313,6 +360,8 @@ class TaskAssigneeModel extends Base
      */
     public function removeTeam(int $taskId, int $teamId): int
     {
+        $this->ensureTaskTeamsTable();
+
         // Drop the task<->team association first
         $this->db
             ->table(self::TASK_TEAMS_TABLE)
@@ -354,6 +403,8 @@ class TaskAssigneeModel extends Base
      */
     public function syncTeamMemberAdded(int $teamId, int $userId): void
     {
+        $this->ensureTaskTeamsTable();
+
         $taskIds = $this->db
             ->table(self::TASK_TEAMS_TABLE)
             ->eq('team_id', $teamId)
@@ -374,6 +425,8 @@ class TaskAssigneeModel extends Base
      */
     public function removeTeamFromAllTasks(int $teamId): void
     {
+        $this->ensureTaskTeamsTable();
+
         $taskIds = $this->db
             ->table(self::TABLE)
             ->eq('source_type', 'team')
@@ -412,6 +465,8 @@ class TaskAssigneeModel extends Base
      */
     public function syncTeamMemberRemoved(int $teamId, int $userId): void
     {
+        $this->ensureTaskTeamsTable();
+
         $taskIds = $this->db
             ->table(self::TASK_TEAMS_TABLE)
             ->eq('team_id', $teamId)

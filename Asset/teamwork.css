@@ -291,18 +291,22 @@
     padding: 1px 6px;
     border-radius: 3px;
 }
-.teamwork-team-rename,
-.teamwork-team-delete {
+.teamwork-team-rename {
     color: #999;
     margin-left: auto;
     text-decoration: none;
+    font-size: 12px;
+}
+.teamwork-team-delete {
+    color: #999;
+    text-decoration: none;
+    font-size: 12px;
 }
 .teamwork-team-rename:hover { color: #337ab7; }
 .teamwork-team-delete:hover { color: #d9534f; }
 .teamwork-team-toggle {
     color: #999;
     text-decoration: none;
-    margin-left: 4px;
 }
 .teamwork-team-body {
     padding: 8px 12px;
@@ -324,9 +328,20 @@
     text-decoration: none;
     font-size: 12px;
 }
+.teamwork-member-empty {
+    color: #999;
+    padding: 4px 0;
+}
 .teamwork-add-member {
     position: relative;
     margin-top: 8px;
+}
+.teamwork-add-member-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 4px;
 }
 .teamwork-member-search {
     width: 100%;

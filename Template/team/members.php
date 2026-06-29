@@ -7,10 +7,14 @@
         <?php endif ?>
     </li>
     <?php endforeach ?>
+    <?php if (empty($team['members'])): ?>
+    <li class="teamwork-member-empty"><em><?= t('No members yet.') ?></em></li>
+    <?php endif ?>
 </ul>
 <?php if (!$team['is_global']): ?>
 <div class="teamwork-add-member">
-    <input type="text" class="teamwork-member-search" placeholder="<?= t('Add member...') ?>" data-team-id="<?= (int)$team['id'] ?>">
+    <label class="teamwork-add-member-label"><?= t('Add member') ?></label>
+    <input type="text" class="teamwork-member-search" placeholder="<?= t('Type a name to add a member...') ?>" data-team-id="<?= (int)$team['id'] ?>">
     <div class="teamwork-member-results" style="display:none;"></div>
 </div>
 <?php endif ?>
