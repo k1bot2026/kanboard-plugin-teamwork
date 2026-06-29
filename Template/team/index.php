@@ -22,18 +22,19 @@
     <?php foreach ($teams as $team): ?>
     <div class="teamwork-team-card" data-team-id="<?= (int)$team['id'] ?>">
         <div class="teamwork-team-header">
+            <a href="#" class="teamwork-team-toggle" title="<?= t('Expand') ?>"><i class="fa fa-caret-up"></i></a>
             <span class="teamwork-team-name"><?= $this->text->e($team['name']) ?></span>
             <span class="teamwork-team-count">(<?= $team['member_count'] ?> <?= t('members') ?>)</span>
             <?php if ($team['is_global']): ?>
                 <span class="teamwork-team-badge teamwork-badge-global"><?= t('Global') ?></span>
             <?php endif ?>
             <?php if (!$team['is_global']): ?>
-                <a href="#" class="teamwork-team-rename" title="<?= t('Rename') ?>"><i class="fa fa-pencil"></i></a>
-                <a href="#" class="teamwork-team-delete" title="<?= t('Delete') ?>"><i class="fa fa-trash-o"></i></a>
+                <a href="#" class="teamwork-team-rename" title="<?= t('Rename') ?>"><i class="fa fa-pencil"></i> <?= t('Rename') ?></a>
+                <a href="#" class="teamwork-team-delete" title="<?= t('Delete') ?>"><i class="fa fa-trash-o"></i> <?= t('Delete') ?></a>
             <?php endif ?>
-            <a href="#" class="teamwork-team-toggle"><i class="fa fa-caret-down"></i></a>
         </div>
-        <div class="teamwork-team-body" style="display:none;">
+        <!-- Member management is shown by default so adding members is always discoverable -->
+        <div class="teamwork-team-body">
             <?php include __DIR__ . '/members.php'; ?>
         </div>
     </div>

@@ -67,5 +67,7 @@ function version_3(PDO $pdo): void
         SELECT DISTINCT task_id, source_id, 0
         FROM teamwork_task_assignees
         WHERE source_type = \'team\' AND source_id IS NOT NULL
+          AND source_id IN (SELECT id FROM teamwork_teams)
+          AND task_id IN (SELECT id FROM tasks)
         ON CONFLICT DO NOTHING');
 }
