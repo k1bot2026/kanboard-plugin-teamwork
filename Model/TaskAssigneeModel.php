@@ -137,6 +137,14 @@ class TaskAssigneeModel extends Base
      */
     public function removeAssignee(int $assigneeId, int $taskId): bool
     {
+        // Capture the user id before deletion so the owner sync knows whether
+        // the removed assignee was the current owner.
+        $removedUserId = $this->db
+            ->table(self::TABLE)
+            ->eq('id', $assigneeId)
+            ->eq('task_id', $taskId)
+            ->findOneColumn('user_id');
+
         $result = $this->db
             ->table(self::TABLE)
             ->eq('id', $assigneeId)
@@ -148,7 +156,7 @@ class TaskAssigneeModel extends Base
         }
 
         $this->resequencePositions($taskId);
-        $this->syncPrimaryAssignee($taskId);
+        $this->syncPrimaryAssignee($taskId, $removedUserId ? [(int) $removedUserId] : []);
 
         return true;
     }
@@ -326,12 +334,14 @@ class TaskAssigneeModel extends Base
      */
     public function removeGroup(int $taskId, int $groupId): int
     {
-        $count = $this->db
+        $removedUserIds = array_map('intval', $this->db
             ->table(self::TABLE)
             ->eq('task_id', $taskId)
             ->eq('source_type', 'group')
             ->eq('source_id', $groupId)
-            ->count();
+            ->findAllByColumn('user_id'));
+
+        $count = count($removedUserIds);
 
         if ($count > 0) {
             $this->db
@@ -342,7 +352,7 @@ class TaskAssigneeModel extends Base
                 ->remove();
 
             $this->resequencePositions($taskId);
-            $this->syncPrimaryAssignee($taskId);
+            $this->syncPrimaryAssignee($taskId, $removedUserIds);
         }
 
         return $count;
@@ -369,12 +379,14 @@ class TaskAssigneeModel extends Base
             ->eq('team_id', $teamId)
             ->remove();
 
-        $count = $this->db
+        $removedUserIds = array_map('intval', $this->db
             ->table(self::TABLE)
             ->eq('task_id', $taskId)
             ->eq('source_type', 'team')
             ->eq('source_id', $teamId)
-            ->count();
+            ->findAllByColumn('user_id'));
+
+        $count = count($removedUserIds);
 
         if ($count > 0) {
             $this->db
@@ -385,7 +397,7 @@ class TaskAssigneeModel extends Base
                 ->remove();
 
             $this->resequencePositions($taskId);
-            $this->syncPrimaryAssignee($taskId);
+            $this->syncPrimaryAssignee($taskId, $removedUserIds);
         }
 
         return $count;
@@ -427,13 +439,19 @@ class TaskAssigneeModel extends Base
     {
         $this->ensureTaskTeamsTable();
 
-        $taskIds = $this->db
+        // Capture (task_id, user_id) pairs before deletion so each task's
+        // owner sync knows which users were removed.
+        $rows = $this->db
             ->table(self::TABLE)
+            ->columns('task_id', 'user_id')
             ->eq('source_type', 'team')
             ->eq('source_id', $teamId)
-            ->findAllByColumn('task_id');
+            ->findAll();
 
-        $taskIds = array_unique(array_map('intval', $taskIds));
+        $removedByTask = [];
+        foreach ($rows as $row) {
+            $removedByTask[(int) $row['task_id']][] = (int) $row['user_id'];
+        }
 
         $this->db
             ->table(self::TABLE)
@@ -446,9 +464,9 @@ class TaskAssigneeModel extends Base
             ->eq('team_id', $teamId)
             ->remove();
 
-        foreach ($taskIds as $taskId) {
+        foreach ($removedByTask as $taskId => $removedUserIds) {
             $this->resequencePositions($taskId);
-            $this->syncPrimaryAssignee($taskId);
+            $this->syncPrimaryAssignee($taskId, $removedUserIds);
         }
     }
 
@@ -489,11 +507,15 @@ class TaskAssigneeModel extends Base
 
             $otherTeamId = $this->findOtherTeamWithMember($taskId, $teamId, $userId);
             if ($otherTeamId !== null) {
+                // Still on the card via another linked team: re-link and keep
+                // the assignment untouched.
                 $this->addAssignee($taskId, $userId, null, 'team', $otherTeamId);
+                $this->resequencePositions($taskId);
+                continue;
             }
 
             $this->resequencePositions($taskId);
-            $this->syncPrimaryAssignee($taskId);
+            $this->syncPrimaryAssignee($taskId, [$userId]);
         }
     }
 
@@ -521,26 +543,55 @@ class TaskAssigneeModel extends Base
     }
 
     /**
-     * Sync the primary assignee to Kanboard's tasks.owner_id.
+     * Sync the primary assignee to Kanboard's tasks.owner_id — conservatively.
      *
-     * Sets owner_id to the user_id of the first assignee by position,
-     * or 0 if no assignees remain. The second argument (false) to update()
-     * is CRITICAL — it disables event firing to prevent event loops.
+     * The assignment must be STABLE: editing a team or adding assignees never
+     * steals an existing assignment. Rules, in order:
      *
-     * @param int $taskId
+     *   1. Current owner is still one of the task's assignees -> keep them.
+     *   2. Current owner is set but is NOT an assignee and was NOT just removed
+     *      (i.e. the owner is managed outside this plugin, e.g. Kanboard's own
+     *      assignee dropdown) -> leave them alone.
+     *   3. Otherwise (no owner, or the owner was just removed) -> promote the
+     *      first remaining assignee by position, or 0 when none are left.
+     *
+     * The second argument (false) to update() is CRITICAL — it disables event
+     * firing to prevent event loops.
+     *
+     * @param int   $taskId
+     * @param int[] $removedUserIds User ids removed by the calling operation
      * @return void
      */
-    public function syncPrimaryAssignee(int $taskId): void
+    public function syncPrimaryAssignee(int $taskId, array $removedUserIds = []): void
     {
-        $result = $this->db
+        $currentOwner = (int) $this->db
+            ->table('tasks')
+            ->eq('id', $taskId)
+            ->findOneColumn('owner_id');
+
+        $assigneeIds = array_map('intval', $this->db
             ->table(self::TABLE)
             ->eq('task_id', $taskId)
             ->asc('position')
-            ->findOneColumn('user_id');
+            ->findAllByColumn('user_id'));
 
-        $primary = $result ? (int) $result : 0;
+        // Rule 1: owner is still assigned — never steal the assignment.
+        if ($currentOwner !== 0 && in_array($currentOwner, $assigneeIds, true)) {
+            return;
+        }
 
-        $this->taskModificationModel->update(['id' => $taskId, 'owner_id' => $primary], false);
+        // Rule 2: owner set outside the plugin — don't overwrite them.
+        $removedUserIds = array_map('intval', $removedUserIds);
+        if ($currentOwner !== 0 && !in_array($currentOwner, $removedUserIds, true)) {
+            return;
+        }
+
+        // Rule 3: fill (owner was 0) or fall back (owner was just removed).
+        $primary = !empty($assigneeIds) ? $assigneeIds[0] : 0;
+
+        if ($primary !== $currentOwner) {
+            $this->taskModificationModel->update(['id' => $taskId, 'owner_id' => $primary], false);
+        }
     }
 
     /**

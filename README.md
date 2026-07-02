@@ -61,7 +61,7 @@ graph TD
 - **Assign groups** (Kanboard native groups) -- all group members are added at once
 - **Assign teams** (plugin-defined project teams) -- create reusable teams per project. Teams are **live-linked**: a team shows on the card by its own name (even when it has no members yet), and adding or removing a member of the team updates every card the team is assigned to
 - **Remove** individual assignees, entire groups, or entire teams with one click
-- **Primary assignee sync** -- the first assignee by position is automatically synced to Kanboard's native `owner_id` field, keeping compatibility with built-in features
+- **Primary assignee sync** -- Kanboard's native `owner_id` stays in sync with the assignee list, but conservatively: an existing assignment is never changed by team or group edits. The owner only changes when the task had no owner yet (first assignee is promoted) or when the current owner is removed from the task (next assignee takes over, or unassigned when none remain)
 
 ### Board Integration -- Avatar Stacks
 
