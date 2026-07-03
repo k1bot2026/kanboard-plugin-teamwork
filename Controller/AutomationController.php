@@ -51,6 +51,7 @@ class AutomationController extends BaseController
     public function addRule(): void
     {
         $project = $this->getProject();
+        $this->checkCSRFParam();
         $values = $this->request->getValues();
 
         $columnId = isset($values['column_id']) ? (int) $values['column_id'] : 0;

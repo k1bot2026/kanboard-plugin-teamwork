@@ -52,6 +52,10 @@ class SettingsController extends BaseController
     public function saveAssignmentMode(): void
     {
         $project = $this->getProject();
+        // Abort on a missing/invalid CSRF token. Without this, getValues()
+        // returns [] and the code below would silently save defaults —
+        // disabling the plugin and wiping custom roles for the project.
+        $this->checkCSRFParam();
         $values = $this->request->getValues();
 
         // Enable/disable toggle (checkbox: present = '1', absent = '0')

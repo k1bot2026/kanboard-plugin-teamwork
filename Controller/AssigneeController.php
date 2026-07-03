@@ -82,9 +82,17 @@ class AssigneeController extends BaseController
                 $this->taskAssigneeModel->addGroup($task['id'], $entityId);
                 break;
             case 'team':
-                $this->taskAssigneeModel->addTeam($task['id'], $entityId);
+                // Only allow teams scoped to this project (or global teams).
+                $team = $this->teamModel->getTeamById($entityId);
+                if (!empty($team) && ($team['project_id'] === null || (int) $team['project_id'] === (int) $task['project_id'])) {
+                    $this->taskAssigneeModel->addTeam($task['id'], $entityId);
+                }
                 break;
             default:
+                // Only allow users who are assignable to this project.
+                if (!$this->projectPermissionModel->isAssignable($task['project_id'], $entityId)) {
+                    break;
+                }
                 $added = $this->taskAssigneeModel->addAssignee($task['id'], $entityId);
                 if ($added) {
                     $this->dispatcher->dispatch(

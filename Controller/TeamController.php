@@ -73,7 +73,7 @@ class TeamController extends BaseController
 
         $team = $this->teamModel->getTeamById($teamId);
 
-        if ($team === false || (int) $team['project_id'] !== $project['id']) {
+        if ($team === false || (int) $team['project_id'] !== (int) $project['id']) {
             $this->response->json(['error' => t('Team not found or not editable.')]);
             return;
         }
@@ -101,7 +101,7 @@ class TeamController extends BaseController
         $teamId = (int) ($this->request->getRawValue('team_id') ?: $this->request->getIntegerParam('team_id'));
         $team = $this->teamModel->getTeamById($teamId);
 
-        if ($team === false || (int) $team['project_id'] !== $project['id']) {
+        if ($team === false || (int) $team['project_id'] !== (int) $project['id']) {
             $this->response->json(['error' => t('Team not found or not editable.')]);
             return;
         }
@@ -126,7 +126,7 @@ class TeamController extends BaseController
 
         $team = $this->teamModel->getTeamById($teamId);
 
-        if ($team === false || (int) $team['project_id'] !== $project['id']) {
+        if ($team === false || (int) $team['project_id'] !== (int) $project['id']) {
             $this->response->json(['error' => t('Team not found or not editable.')]);
             return;
         }
@@ -151,7 +151,7 @@ class TeamController extends BaseController
 
         $team = $this->teamModel->getTeamById($teamId);
 
-        if ($team === false || (int) $team['project_id'] !== $project['id']) {
+        if ($team === false || (int) $team['project_id'] !== (int) $project['id']) {
             $this->response->json(['error' => t('Team not found or not editable.')]);
             return;
         }
