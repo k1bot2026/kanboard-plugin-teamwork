@@ -150,6 +150,12 @@ class Plugin extends Base
         $this->hook->on('template:layout:js',  ['template' => 'plugins/TeamWork/Asset/teamwork.js']);
         $this->hook->on('template:layout:css', ['template' => 'plugins/TeamWork/Asset/teamwork.css']);
 
+        // Notification bodies for the custom assignee.add/remove events. Core's
+        // mail/web handlers render notification/<event>; point those at the
+        // plugin's templates so emails/web notifications aren't empty.
+        $this->template->setTemplateOverride('notification/teamwork_assignee_add', 'TeamWork:notification/teamwork_assignee_add');
+        $this->template->setTemplateOverride('notification/teamwork_assignee_remove', 'TeamWork:notification/teamwork_assignee_remove');
+
         // Board card avatar stacks (private board)
         $this->template->hook->attachCallable(
             'template:board:private:task:after-title',
@@ -284,22 +290,14 @@ class Plugin extends Base
             return $taskLexer;
         });
 
-        // --- My Tasks dashboard extension ---
-        // Include tasks where current user is a TeamWork assignee (only from enabled projects).
-        // Default is enabled, so exclude only projects explicitly disabled (value = '0').
-        $this->hook->on('pagination:dashboard:task:query', function (&$query) {
-            $userId = (int) $this->userSession->getId();
-            $query->addCondition(
-                'tasks.id IN (SELECT ta.task_id FROM teamwork_task_assignees ta'
-                . ' WHERE ta.user_id = ' . $userId
-                . ' AND NOT EXISTS ('
-                . '   SELECT 1 FROM project_has_metadata pm'
-                . '   WHERE pm.project_id = tasks.project_id'
-                . '   AND pm.name = \'teamwork_enabled\' AND pm.value = \'0\''
-                . ' ))'
-                . ' OR tasks.owner_id = ' . $userId
-            );
-        });
+        // NOTE: We deliberately do NOT extend the "My tasks" dashboard query.
+        // Kanboard's getUserQuery() requires owner_id = me (or subtask member)
+        // as an AND-scoped term, so a hook can only append further AND
+        // conditions — it cannot OR-in "I'm a secondary assignee" without
+        // either failing to match those tasks or leaking closed/inactive tasks
+        // past the dashboard's own filters. Instead, the plugin's assignee:
+        // search filter is TeamWork-aware: use "assignee:me" (saved as a custom
+        // filter) to list every task where you are any assignee.
     }
 
     public function getClasses(): array
@@ -329,7 +327,7 @@ class Plugin extends Base
 
     public function getPluginVersion(): string
     {
-        return '1.1.2';
+        return '1.1.3';
     }
 
     public function getCompatibleVersion(): string

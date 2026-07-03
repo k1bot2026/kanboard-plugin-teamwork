@@ -102,12 +102,7 @@ When switching to Primary + Helpers mode, existing assignees are retroactively u
 - Extended `assignee:` filter includes TeamWork assignees (not just the native owner)
 - New `role:` filter to find tasks by assignee role (e.g., `role:Primary`, `role:QA`)
 - Works in board filters and the global search bar
-
-### Dashboard Integration
-
-- Tasks where you are a TeamWork assignee appear on your personal "My Tasks" dashboard
-- Works alongside native "assigned to me" tasks
-- Respects the per-project enable/disable toggle (disabled projects are excluded)
+- To get a "my tasks" view that includes tasks where you are a secondary assignee, search `assignee:me` (save it as a custom filter). Kanboard's built-in "My tasks" dashboard only lists tasks you own; see [Known limitations](#known-limitations)
 
 ### Per-Project Toggle
 
@@ -138,11 +133,21 @@ Click `[+]` to open the type-ahead search. Start typing a name to filter users, 
 
 ![Search picker](screenshots/task-detail-search-picker.png)
 
+Hover the `+N` badge to see the names of everyone not shown.
+
+![Board avatar stacks close-up](screenshots/board-avatar-stacks.png)
+
 ### Edit Modal (Card Popup)
 
 The task edit popup includes a "Team Assignees" section for managing assignees without leaving the board.
 
 ![Edit modal with assignees](screenshots/edit-modal-assignees.png)
+
+### Team Management
+
+Create project teams and manage their members. The member list and "Add member" field are shown by default. Empty teams are supported and still appear on cards.
+
+![Team management](screenshots/team-management.png)
 
 ### TeamWork Settings
 
@@ -150,9 +155,23 @@ Enable/disable multi-person assignment per project and choose an assignment mode
 
 ![TeamWork settings](screenshots/settings-teamwork.png)
 
-### Assignment Mode Configuration
+### Automation Rules
 
-![Assignment mode settings](screenshots/settings-assignment-mode.png)
+Automatically set a role on all assignees when a task enters a chosen column.
+
+![Automation rules](screenshots/automation-rules.png)
+
+---
+
+## Known limitations
+
+Honest notes on current behavior, so there are no surprises:
+
+- **"My tasks" dashboard** lists only tasks you own (Kanboard's native query cannot be safely widened by a plugin). Use the `assignee:me` search filter (saved as a custom filter) to see every task where you are any assignee.
+- **Task duplication, "duplicate/move to another project"** do not carry TeamWork assignees or team links; re-assign after copying. The native single assignee (`owner_id`) is preserved.
+- **Kanboard groups** are expanded to their members at the moment you add them (a snapshot). Unlike plugin teams, later changes to a Kanboard group's membership do not propagate to cards.
+- **Global teams** (not tied to a project) are not yet creatable from the UI.
+- The `role:` filter matches an exact role name; there is no `role:none` yet.
 
 ---
 
