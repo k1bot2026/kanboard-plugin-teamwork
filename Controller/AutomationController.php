@@ -51,7 +51,8 @@ class AutomationController extends BaseController
     public function addRule(): void
     {
         $project = $this->getProject();
-        $this->checkCSRFParam();
+        // Form POST: the token is in the body, not the query string.
+        $this->checkCSRFForm();
         $values = $this->request->getValues();
 
         $columnId = isset($values['column_id']) ? (int) $values['column_id'] : 0;
