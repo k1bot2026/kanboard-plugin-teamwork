@@ -55,7 +55,9 @@ class SettingsController extends BaseController
         // Abort on a missing/invalid CSRF token. Without this, getValues()
         // returns [] and the code below would silently save defaults —
         // disabling the plugin and wiping custom roles for the project.
-        $this->checkCSRFParam();
+        // The token is posted in the form body, so use checkCSRFForm():
+        // checkCSRFParam() reads the query string and would always 403.
+        $this->checkCSRFForm();
         $values = $this->request->getValues();
 
         // Enable/disable toggle (checkbox: present = '1', absent = '0')
